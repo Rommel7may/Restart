@@ -10,12 +10,9 @@ import {
 import { useForm } from '@inertiajs/react'
 import * as React from 'react'
 import { toast } from 'sonner'
-import axios from 'axios'
 
-interface AlumniFormProps {
-  mode?: 'create' | 'edit'
-  id?: number
-  student_number?: string
+interface AlumniUpdateFormProps {
+  student_number: string
   email?: string
   program?: string
   last_name?: string
@@ -36,10 +33,8 @@ interface AlumniFormProps {
   onSuccess?: (updated: any) => void
 }
 
-export function AlumniForm({
-  mode = 'create',
-  id,
-  student_number = '',
+export default function AlumniUpdateForm({
+  student_number,
   email = '',
   program = '',
   last_name = '',
@@ -58,11 +53,8 @@ export function AlumniForm({
   related_to_course = '',
   consent = false,
   onSuccess,
-}: AlumniFormProps) {
-  const isEditing = mode === 'edit'
-
-  const { data, setData, post, put, processing, reset } = useForm({
-    id,
+}: AlumniUpdateFormProps) {
+  const { data, setData, put, processing, reset } = useForm({
     student_number,
     email,
     program,
@@ -83,79 +75,42 @@ export function AlumniForm({
     consent,
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    try {
-      if (!isEditing) {
-        const res = await axios.get('/check-active-email', {
-          params: { email: data.active_email },
-        })
-
-        if (res.data.exists) {
-          toast.error('❌ Active email already exists. Please use another email.')
-          return
-        }
-      }
-
-      const endpoint = isEditing
-        ? `/alumni-update-form/${data.student_number}`
-        : `/alumni-form/${data.student_number}/submit`
-
-      const method = isEditing ? put : post
-
-      method(endpoint, {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: (page) => {
-          toast.success(isEditing ? '✅ Record updated!' : '🎉 Form submitted successfully!')
-          const updated = page?.props?.data || page?.data?.data || null
-          if (updated) onSuccess?.(updated)
-          reset()
-        },
-        onError: (errors: Record<string, string>) => {
-          const messages = Object.values(errors).filter(Boolean)
-          toast.error(messages.length ? messages.join(', ') : '❌ Submission failed.')
-        },
-      })
-    } catch (error) {
-      toast.error('⚠️ Something went wrong while checking active email.')
-    }
+    put(`/alumni-update-form/${student_number}`, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => {
+        toast.success('✅ Record updated!')
+        onSuccess?.(data)
+        reset()
+      },
+      onError: (errors: Record<string, string>) => {
+        const messages = Object.values(errors).filter(Boolean)
+        toast.error(messages.length ? messages.join(', ') : '❌ Update failed.')
+      },
+    })
   }
 
-  const yearOptions = Array.from(
+  const graduationYears = Array.from(
     { length: new Date().getFullYear() - 2022 + 1 },
     (_, i) => (new Date().getFullYear() - i).toString()
   )
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mx-auto grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-2"
-    >
-      <h2 className="col-span-2 text-2xl font-bold">
-        {isEditing ? 'Update Alumni Record' : 'Alumni Form'}
-      </h2>
+    <form onSubmit={handleSubmit} className="mx-auto grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-2">
+      <h2 className="col-span-2 text-2xl font-bold">Update Alumni Record</h2>
 
-      <Input
-        placeholder="Student Number"
-        value={data.student_number}
-        onChange={(e) => setData('student_number', e.target.value)}
-        disabled={isEditing}
-      />
-      <Input
-        placeholder="Email"
-        value={data.email}
-        onChange={(e) => setData('email', e.target.value)}
-      />
+      <div className="col-span-2">
+        <label className="text-sm font-medium text-gray-700 mb-1 block">Student Number</label>
+        <Input value={student_number} readOnly />
+      </div>
 
-      <Select
-        value={data.program}
-        onValueChange={(value) => setData('program', value)}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Program taken" />
-        </SelectTrigger>
+      <Input placeholder="Email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
+
+      <Select value={data.program} onValueChange={(value) => setData('program', value)}>
+        <SelectTrigger><SelectValue placeholder="Program taken" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="BSIT">BS Information Technology</SelectItem>
           <SelectItem value="BSBA">BS Business Administration</SelectItem>
@@ -174,15 +129,10 @@ export function AlumniForm({
       <Input type="email" placeholder="Active Email" value={data.active_email} onChange={(e) => setData('active_email', e.target.value)} />
       <Input placeholder="Contact Number" value={data.contact_number} onChange={(e) => setData('contact_number', e.target.value)} />
 
-      <Select
-        value={data.graduation_year}
-        onValueChange={(value) => setData('graduation_year', value)}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Select Graduation Year" />
-        </SelectTrigger>
+      <Select value={data.graduation_year} onValueChange={(value) => setData('graduation_year', value)}>
+        <SelectTrigger><SelectValue placeholder="Graduation Year" /></SelectTrigger>
         <SelectContent>
-          {yearOptions.map((year) => (
+          {graduationYears.map((year) => (
             <SelectItem key={year} value={year}>{year}</SelectItem>
           ))}
         </SelectContent>
@@ -195,9 +145,7 @@ export function AlumniForm({
           if (value !== 'employed') setData('company_name', '')
         }}
       >
-        <SelectTrigger>
-          <SelectValue placeholder="Employment Status" />
-        </SelectTrigger>
+        <SelectTrigger><SelectValue placeholder="Employment Status" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="employed">Employed</SelectItem>
           <SelectItem value="under-employed">Under Employed</SelectItem>
@@ -213,6 +161,15 @@ export function AlumniForm({
           onChange={(e) => setData('company_name', e.target.value)}
         />
       )}
+
+      <Select value={data.related_to_course} onValueChange={(value) => setData('related_to_course', value)}>
+        <SelectTrigger><SelectValue placeholder="Is job related to your course?" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="yes">Yes</SelectItem>
+          <SelectItem value="no">No</SelectItem>
+          <SelectItem value="unsure">Not Sure</SelectItem>
+        </SelectContent>
+      </Select>
 
       <Select value={data.further_studies} onValueChange={(value) => setData('further_studies', value)}>
         <SelectTrigger><SelectValue placeholder="Further Studies (optional)" /></SelectTrigger>
@@ -253,25 +210,18 @@ export function AlumniForm({
         </SelectContent>
       </Select>
 
-      {/* ✅ New Field - Related to Course */}
-      <Select value={data.related_to_course} onValueChange={(value) => setData('related_to_course', value)}>
-        <SelectTrigger>
-          <SelectValue placeholder="Is your work related to your course?" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="yes">Yes</SelectItem>
-          <SelectItem value="no">No</SelectItem>
-          <SelectItem value="unsure">Not Sure</SelectItem>
-        </SelectContent>
-      </Select>
-
       <div className="col-span-2 flex items-center gap-2">
-        <input type="checkbox" checked={data.consent} onChange={(e) => setData('consent', e.target.checked)} required />
+        <input
+          type="checkbox"
+          checked={data.consent}
+          onChange={(e) => setData('consent', e.target.checked)}
+          required
+        />
         <label className="text-sm">I consent to the processing of my data.</label>
       </div>
 
       <Button type="submit" disabled={processing} className="col-span-2">
-        {isEditing ? 'Update' : 'Submit'}
+        Update
       </Button>
     </form>
   )

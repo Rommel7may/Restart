@@ -1,6 +1,8 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Pie, PieChart } from "recharts"
+import axios from "axios"
 
 import {
   Card,
@@ -16,48 +18,36 @@ import {
   ChartLegendContent,
 } from "@/components/ui/chart"
 
-export const description = "A pie chart with a legend"
-
-const chartData = [
-  { browser: "chrome", visitors: 275, fill: "var(--color-chrome)" },
-  { browser: "safari", visitors: 200, fill: "var(--color-safari)" },
-  { browser: "firefox", visitors: 187, fill: "var(--color-firefox)" },
-  { browser: "edge", visitors: 173, fill: "var(--color-edge)" },
-  { browser: "other", visitors: 90, fill: "var(--color-other)" },
-]
+type ChartDataItem = {
+  browser: string
+  visitors: number
+  fill: string
+}
 
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
-  },
-  chrome: {
-    label: "Chrome",
-    color: "var(--chart-1)",
-  },
-  safari: {
-    label: "Safari",
-    color: "var(--chart-2)",
-  },
-  firefox: {
-    label: "Firefox",
-    color: "var(--chart-3)",
-  },
-  edge: {
-    label: "Edge",
-    color: "var(--chart-4)",
-  },
-  other: {
-    label: "Other",
-    color: "var(--chart-5)",
-  },
+  visitors: { label: "Visitors" },
+  employed: { label: "Employed", color: "var(--chart-1)" },
+  "under-employed": { label: "Under-Employed", color: "var(--chart-4)" }, // 👈 Added this line
+  unemployed: { label: "Unemployed", color: "var(--chart-2)" },
+  "self-employed": { label: "Self-Employed", color: "var(--chart-3)" },
+  unknown: { label: "Unknown", color: "var(--chart-5)" },
 } satisfies ChartConfig
 
+
 export function ChartPieLegend() {
+  const [chartData, setChartData] = useState<ChartDataItem[]>([])
+
+  useEffect(() => {
+    axios.get("/alumni-chart").then((res) => {
+      setChartData(res.data)
+    })
+  }, [])
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
-        <CardTitle>Pie Chart - Legend</CardTitle>
-        <CardDescription>January - June 2024</CardDescription>
+        <CardTitle>Alumni Employment Pie</CardTitle>
+        <CardDescription>Data from database</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
@@ -65,9 +55,18 @@ export function ChartPieLegend() {
           className="mx-auto aspect-square max-h-[300px]"
         >
           <PieChart>
-            <Pie data={chartData} dataKey="visitors" />
+            <Pie
+  data={chartData}
+  dataKey="visitors"
+  nameKey="browser"
+  label={({ percent }) => `${(percent * 100).toFixed(1)}%`} // 👈 ito ang naglalagay ng percentage
+  isAnimationActive={false}
+/>
+
             <ChartLegend
-              content={<ChartLegendContent nameKey="browser" payload={undefined} />}
+              content={
+                <ChartLegendContent nameKey="browser" payload={chartData} />
+              }
               className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
             />
           </PieChart>

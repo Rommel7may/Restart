@@ -1,12 +1,29 @@
 "use client"
 
 import * as React from "react"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"
 import { toast } from "sonner"
 import axios from "axios"
-import { FormInputIcon, GraduationCap } from "lucide-react"
+import {
+  FormInputIcon,
+  Share2Icon,
+  DownloadIcon,
+} from "lucide-react"
 
 const programs = [
   "BS INFORMATION TECHNOLOGY",
@@ -30,10 +47,9 @@ export function SendEmailToProgram() {
 
     try {
       const response = await axios.post("/send-email", { program: selectedProgram })
+      const { sent = [], failed = [] } = response.data
 
-      const { sent, failed } = response.data
-
-      if (failed?.length) {
+      if (failed.length > 0) {
         const failedList = failed.map((f: any) => f.email).join(", ")
         toast.warning("Some emails failed to send ❗", {
           description: `Failed: ${failedList}`,
@@ -47,37 +63,90 @@ export function SendEmailToProgram() {
       setOpen(false)
       setSelectedProgram("")
     } catch (err: any) {
-      const fallback = err?.response?.data?.message || "Something went wrong."
-      toast.error("Failed to send emails", { description: fallback })
+      toast.error("Failed to send emails", {
+        description: err?.response?.data?.message || "Something went wrong.",
+      })
+    }
+  }
+
+  const handleShareLink = () => {
+    const link = `${window.location.origin}/alumni-form-link`
+    navigator.clipboard.writeText(link)
+    toast.success("Form link copied to clipboard! 📎")
+  }
+
+  const handleExport = async () => {
+    try {
+      const response = await axios.get("/export-alumni", {
+        responseType: "blob", // correct route and blob format
+      })
+
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", "alumni-list.xlsx")
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+
+      toast.success("Alumni list exported ✅")
+    } catch (error: any) {
+      toast.error("Export failed ❌", {
+        description: error?.response?.data?.message || "Something went wrong.",
+      })
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default"><FormInputIcon/>Send Email to Program</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Select a Program</DialogTitle>
-        </DialogHeader>
-        <Select value={selectedProgram} onValueChange={setSelectedProgram}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Choose a program..." />
-          </SelectTrigger>
-          <SelectContent>
-            {programs.map((prog) => (
-              <SelectItem key={prog} value={prog}>
-                {prog}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DialogFooter>
-          <Button onClick={handleSend}>Send</Button>
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div className="flex gap-2 flex-wrap">
+      {/* 🔗 Share Link */}
+      <Button variant="outline" onClick={handleShareLink}>
+        <Share2Icon className="w-4 h-4 mr-2" />
+        Share Link
+      </Button>
+
+      {/* 📥 Export Excel */}
+      <Button variant="outline" onClick={handleExport}>
+        <DownloadIcon className="w-4 h-4 mr-2" />
+        Export Alumni List
+      </Button>
+
+      {/* 📧 Send Email Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="default">
+            <FormInputIcon className="w-4 h-4 mr-2" />
+            Send Email to Program
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select a Program</DialogTitle>
+          </DialogHeader>
+          <Select value={selectedProgram} onValueChange={setSelectedProgram}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Choose a program..." />
+            </SelectTrigger>
+            <SelectContent>
+              {programs.map((prog) => (
+                <SelectItem key={prog} value={prog}>
+                  {prog}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button onClick={handleSend}>Send</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

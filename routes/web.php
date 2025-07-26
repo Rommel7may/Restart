@@ -2,49 +2,84 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\SendController;
-use App\Http\Controllers\StudentController;
-use App\Http\Controllers\AlumniController;
-use App\Http\Controllers\ListController;
-use App\Http\Controllers\DataController;
-use App\Http\Controllers\JobController;
-use App\Http\Controllers\AlumniFormController;
+use App\Http\Controllers\{
+    SendController,
+    StudentController,
+    AlumniController,
+    ListController,
+    DataController,
+    JobController,
+    AlumniFormController,
+    UpdateAlumniFormController,
+    ChartController,
+    AlumniExportController,
+    UpdateEmailController
+};
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+// 🌐 Public Welcome Page
+Route::get('/', fn () => Inertia::render('welcome'))->name('home');
 
+// 📝 Public Alumni Form (Initial Submission)
+Route::get('/alumni-form/{student_number}', [AlumniFormController::class, 'show'])->name('alumni.form');
+Route::post('/alumni-form/{student_number}/submit', [AlumniFormController::class, 'store'])->name('alumni.store');
+
+// 🔗 Shareable Blank Form Page (optional)
+Route::get('/alumni-form-link', fn () => Inertia::render('AlumniForm'))->name('alumni.form.link');
+
+// 🔄 Signed Alumni Update Form (via email link)
+Route::get('/alumni-update-form/{student_number}', [UpdateAlumniFormController::class, 'show'])
+    ->middleware('signed')
+    ->name('alumni.update.form');
+
+Route::put('/alumni-update-form/{student_number}', [UpdateAlumniFormController::class, 'update'])
+    ->name('alumni.update.submit');
+
+// ✅ Check for duplicate active email
+Route::get('/check-active-email', [AlumniFormController::class, 'checkActiveEmail'])->name('alumni.email.check');
+
+// 📊 Public Charts and Export
+Route::get('/alumni-chart', [ChartController::class, 'alumniPie'])->name('alumni.chart');
+Route::get('/export-alumni', [AlumniExportController::class, 'export'])->name('alumni.export');
+
+// 🧪 Test Email Blade Preview
+Route::get('/test-email-view', fn () => view('emails.AlumniUpdateForm', [
+    'student' => (object)[
+        'student_number' => '2023-00001',
+        'given_name' => 'Juan',
+    ],
+    'formUrl' => url('/alumni-update-form/2023-00001'),
+]))->name('test.email.view');
+
+// 🔐 Admin-Only Authenticated Routes
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+
+    // 📊 Dashboard
+    Route::get('/dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
+
+    // 📧 Email Sending
+    Route::post('/send-email', [SendController::class, 'sendEmail'])->name('email.send');
+    Route::post('/send-email-to-alumni', [SendController::class, 'sendToProgram'])->name('email.to.program');
+    Route::post('/send-email-to-all-alumni', [UpdateEmailController::class, 'sendToAll'])->name('email.to.all.alumni');
+
+    // 👨‍🎓 Alumni CRUD
+    Route::get('/alumni-data', [AlumniController::class, 'index'])->name('alumni.index');
+    Route::post('/alumni', [AlumniController::class, 'store'])->name('alumni.store');
+    Route::put('/alumni/{id}', [AlumniController::class, 'update'])->name('alumni.update');
+    Route::delete('/alumni/{id}', [AlumniController::class, 'destroy'])->name('alumni.destroy');
+
+    // 👩‍🎓 Student CRUD
+    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+    Route::post('/students', [StudentController::class, 'store'])->name('students.store');
+    Route::put('/students/{student}', [StudentController::class, 'update'])->name('students.update');
+    Route::delete('/students/{student}', [StudentController::class, 'destroy'])->name('students.destroy');
+
+    // 📦 Resource Routes
+    Route::resource('/send', SendController::class)->only(['index', 'create', 'store']);
+    Route::resource('/list', ListController::class);
+    Route::resource('/data', DataController::class);
+    Route::resource('/job', JobController::class);
 });
-//Next Page
-Route::resource('/send',SendController::class);
-Route::resource('/alumni',AlumniController::class);
-Route::resource('/list',ListController::class);
-Route::resource('/data',DataController::class);
-Route::resource('/job',JobController::class);
 
-//CRUD Student
-Route::get('/students', [StudentController::class, 'index'])->name('students.index');
-Route::post('/students', [StudentController::class, 'store'])->name('students.store');
-Route::put('/students/{student}', [StudentController::class, 'update']);
-Route::delete('/students/{student}', [StudentController::class, 'destroy']);
-
-//Try mailing
-Route::post('/send-email', [SendController::class, 'sendEmail']);
-Route::get('/alumni-form/{student_number}', [AlumniFormController::class, 'show'])
-    ->name('alumni.form');
-
-Route::get('/test-email-view', function () {
-    return view('emails.alumni-form', [
-        'student' => (object) ['student_number' => '2023-00001'],
-        'formUrl' => 'https://example.com/alumni-form/2023-00001',
-    ]);
-});
-
-Route::post('/alumni-form/{student_number}/submit', [AlumniController::class, 'store'])
-    ->name('alumni.store');
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+// ⚙️ System Config & Auth
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';
